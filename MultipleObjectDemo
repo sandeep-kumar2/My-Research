@@ -1,0 +1,66 @@
+public with sharing class MultipleObjectDemo {
+    private Map<String, List<sObject>> mapOfSobjectList = null;
+    private String fieldsToFetchJSON {get;set;}
+    private List<WrapperModel> wrapperModelList;
+    public String modelsJSON {get;set;}
+    public String jsonData {get;set;}
+    
+    public MultipleObjectDemo () {
+        mapOfSobjectList = new Map<String, List<sObject>>();        
+        jsonData = '[{type:"text", label:"Gender", modelName:"student", APIName:"EnrollmentrxRx__Gender__c",rendered: "true"}, {type:"text",label:"First Name" ,modelName:"student", APIName:"FirstName", rendered:"obj.EnrollmentrxRx__Gender__c != \'Male\'"}, {type:"text", label:"Admission Status", modelName:"currentApplication", APIName:"EnrollmentrxRx__Admissions_Status__c", rendered:"modelList[\'student\'][0].EnrollmentrxRx__Gender__c != \'Male\'"}]';
+        fieldsToFetchJSON = '[      {  "modelName": \"student\" ,"objectName": "Contact", "condition": "Id = \'003J0000011OglL\'"  ,    "field": [          "FirstName",          "LastName"  , "EnrollmentrxRx__Gender__c" , "EnrollmentrxRx__Active_Enrollment_Opportunity__r.EnrollmentrxRx__Admissions_Status__c"    ]      },      {        "modelName": "currentApplication",        "objectName": "EnrollmentrxRx__Enrollment_Opportunity__c",        "field": [          "EnrollmentrxRx__Admissions_Status_Text__c",          "EnrollmentrxRx__College_University_Attended__c", "EnrollmentrxRx__Admissions_Status__c"       ]      }    ]';
+        wrapperModelList = (List<WrapperModel>) JSON.deserialize(fieldsToFetchJSON, List<WrapperModel>.class);
+        
+        for(WrapperModel w : wrapperModelList) {
+            mapOfSobjectList.put(w.modelName, constructSQlList(w.objectName, w.field, w.condition));
+        }
+        modelsJSON = JSON.serialize(mapOfSobjectList); 
+    }
+    
+    public class WrapperModel {
+        public String modelName {get;set;}
+        public String objectName {get;set;}
+        public List<String> field {get;set;}
+        public String condition {get;set;}
+        
+        public WrapperModel(String modelName, String objectName, List<String> field, String condition) {
+            this.modelName = modelName;  
+            this.objectName = objectName;
+            this.field = field;
+            this.condition = condition;
+        }
+    }
+    
+    public static List<sObject> constructSQlList (String objectName, List<String> fieldList, String condition) {
+        
+        String sqlString = 'Select ';
+        for(String f : fieldList) {
+            sqlString += f + ',';
+        }
+        sqlString = sqlString.substring(0, sqlString.length() - 1);     
+        sqlString += ' from ' + objectName;
+        if(!String.IsEmpty(condition)) {
+            sqlString += ' where ' + condition;
+        }
+        sqlString += ' limit 2 ';
+        //system.assert(false, sqlString);
+        return Database.query(sqlString);
+    }
+    
+    @RemoteAction
+     public static Map<String, List<sObject>> updateData(String data) {
+          Map<String, List<sObject>> mapOfSobjectList = new Map<String, List<sObject>>();
+          try {
+              mapOfSobjectList = (Map<String, List<sObject>>)JSON.deserialize(data, Map<String, List<sObject>>.class);
+              //system.assert(false, mapOfSobjectList);
+              List<Sobject> objectsToUpdate = new List<Sobject>();
+              for(List<Sobject> s : mapOfSobjectList.values()) {
+                  objectsToUpdate.addAll(s);
+              }   
+              update objectsToUpdate;
+          } catch (Exception e) {
+              system.assert(false, e + '***' + e.getStackTraceString());
+          }
+          return mapOfSobjectList;            
+     }
+}
