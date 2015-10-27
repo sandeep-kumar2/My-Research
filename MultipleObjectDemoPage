@@ -1,0 +1,60 @@
+<apex:page controller="MultipleObjectDemo">
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.14/angular.min.js"></script> 
+    <h2>This example explains how we can add and delete repeated sections</h2>
+    <br/><br/>
+    <div ng-app="mainApp" ng-controller="mainAppController">       
+        <form name="contactForm" >
+            <table ng-repeat="fieldInfo in jsonData">
+                <tr ng-repeat="obj in modelList[fieldInfo.modelName]" ng-show='{{fieldInfo.rendered}}'><td>{{fieldInfo.label}}</td><td><input ng-Minlength='3' type='text' ng-model='obj[fieldInfo.APIName]' /></td></tr> 
+            </table>         
+            <button ng-click="save()">Submit</button>
+        </form>
+    </div>    
+    
+    <script>
+        var mainApp = angular.module("mainApp", []);       
+        mainApp.controller('mainAppController', function($scope, DataService){
+              $scope.modelList = {!modelsJSON}
+              $scope.jsonData = {!jsonData}
+              $scope.save= function() {
+                    DataService.saveData($scope.modelList).then(function(data) {
+                        console.log('data ' + JSON.stringify(data) + '***' + data);
+                        $scope.jsonData = {!jsonData}
+                        console.log('$scope.modelList: ' + $scope.modelList);
+                    });
+              }      
+        });
+        
+        mainApp.service('DataService', function($q) {              
+               this.saveData= function(a) {
+               delete a.$$hashKey;              
+               var serverData = angular.toJson(a);
+               console.log('serverData: ' + serverData);
+               var deferred = $q.defer();
+               Visualforce.remoting.Manager.invokeAction(
+                    '{!$RemoteAction.MultipleObjectDemo.updateData}',
+                    serverData , 
+                    function(result, event){
+                        if (event.status) {
+                            var customer = JSON.stringify(result);
+                            var find = '\'';
+                            var re = new RegExp(find, 'g');
+                            customer = customer.replace(re, '');
+                            console.log('customer' + customer);
+                            deferred.resolve(JSON.parse(customer));
+                            console.log('deferred.promise:' + deferred.promise);  
+                            console.log('result:' + result);                       
+                        } else if (event.type === 'exception') {
+                           deferred.reject(JSON.parse('[]'));
+                        } else {
+                          
+                        }
+                    }, 
+                    {escape: true}
+                );              
+                console.log('deferred.promise: ' + deferred.promise);
+                return deferred.promise;
+             }
+        });
+    </script>    
+</apex:page>
